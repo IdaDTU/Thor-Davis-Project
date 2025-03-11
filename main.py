@@ -17,7 +17,6 @@ data  = glob.glob("C:/Users/user/OneDrive/Desktop/ThorDavis/dvSave-2023_12_30_20
 reader = dvp.io.MonoCameraRecording(data)
 print(f"Opened an AEDAT4 file which contains data from [{reader.getCameraName()}] camera")
 
-print(reader.isFrameStreamAvailable)
 #%% Calculate total number of batches
 total_batches = count_batches(data) 
 
@@ -30,7 +29,7 @@ df_histogram = create_dataframe(data,
                                 batches = n)
 print(f"computed {n} batches with {100*n} bins...")
 
-# Create plot
+#%% Create plot
 plot_event_distribution(df_histogram)
 
 #%% Read current frame interval duration value
