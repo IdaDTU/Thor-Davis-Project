@@ -1,6 +1,3 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.cluster import DBSCAN
 import dv_processing as dvp
 import glob
 from video_information import create_dataframe, collect_on_events
