@@ -4,7 +4,7 @@ from sklearn.cluster import DBSCAN
 import dv_processing as dvp
 import glob
 from video_information import create_dataframe, collect_on_events
-from plotting import plot_event_distribution, plot_cluster_locations
+from plotting import plot_cluster_locations
 import pandas as pd
 from dbscan import dbscan, filter_and_merge_clusters
 from output_df import calculate_total_events, calculate_cluster_sizes, calculate_event_rate, create_and_save_df
