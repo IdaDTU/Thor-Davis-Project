@@ -60,3 +60,41 @@ def create_dataframe(file_path: str,
         'timestamps_sec': bin_centers / 1e6,  # Convert to seconds
         'count': hist_counts
     })
+
+def collect_on_events(capture, num_batches):
+    """
+    Collect 'on' polarity events from the given capture object over a specified number of batches.
+    
+    Args:
+    - capture: The capture object (e.g., from the MonoCameraRecording class) used to fetch event batches.
+    - num_batches: The number of event batches to process.
+    
+    Returns:
+    - event_array (np.ndarray): A NumPy array containing the x, y, and timestamp of the 'on' polarity events.
+    """
+    # Initialize empty list for storing events and timestamps
+    on_events_list = []
+    first_run = True
+    
+    # Loop over the specified number of event batches
+    for _ in range(num_batches):
+        events = capture.getNextEventBatch()
+        
+        if first_run:
+            first_timestamp = events[0].timestamp() / 1000000  # Convert the first timestamp to seconds
+            first_run = False
+        
+        # Keep only ON polarities
+        for e in events:
+            if e.polarity() == True:
+                time = e.timestamp() / 1000  # Convert to milliseconds
+                x = e.x()
+                y = e.y()
+                on_events_list.append((x, y, time))
+    
+    print(f"Number of 'on' events collected: {len(on_events_list)}")
+    
+    # Convert the list of 'on' events to a NumPy array
+    event_array = np.array(on_events_list)
+    
+    return event_array, first_timestamp
