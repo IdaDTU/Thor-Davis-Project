@@ -1,5 +1,6 @@
 from sklearn.cluster import DBSCAN
 import numpy as np
+import pandas as pd
 
 def dbscan(event_array, eps=3, min_samples=100):
     """
@@ -26,10 +27,18 @@ def dbscan(event_array, eps=3, min_samples=100):
     y_coords = event_array[:, 1]
     timestamps = event_array[:, 2]
 
-    return labels, x_coords, y_coords, timestamps
+    # Create a DataFrame to store the results
+    df = pd.DataFrame({
+        'x': x_coords,
+        'y': y_coords,
+        'timestamp': timestamps,
+        'labels': labels
+    })
+    
+    return df
 
 
-def filter_and_merge_clusters(event_array, labels, first_timestamp, min_events=10, max_duration=0.5, time_tolerance=0.01):
+def filter_and_merge_clusters(event_array, labels, first_timestamp, min_clusters=10, max_duration=0.5, time_tolerance=0.01):
     """
     Filter clusters based on the number of events and duration, and merge clusters with similar mean times.
     
@@ -61,7 +70,7 @@ def filter_and_merge_clusters(event_array, labels, first_timestamp, min_events=1
     unique_labels = np.unique(labels_valid)
 
     # Filter clusters with more than 'min_events' events
-    valid_clusters = [label for label in unique_labels if np.sum(labels_valid == label) > min_events]
+    valid_clusters = [label for label in unique_labels if np.sum(labels_valid == label) > min_clusters]
 
     # Initialize lists for short clusters and their mean times
     short_clusters = []
@@ -77,6 +86,7 @@ def filter_and_merge_clusters(event_array, labels, first_timestamp, min_events=1
             mean_time = np.mean(cluster_timestamps)
             short_clusters.append(cluster)
             short_mean_time.append(mean_time)
+            
 
     print(f"Clusters lasting less than {max_duration} seconds:", len(short_clusters))
 
@@ -104,6 +114,20 @@ def filter_and_merge_clusters(event_array, labels, first_timestamp, min_events=1
 
     print("Clusters after merging:", len(merged_clusters))
 
-    return merged_clusters, merged_mean_time, timestamps_valid, x_coords_valid, y_coords_valid
+    # Now create the DataFrame with the required variables
+    cluster_data = {
+        'clusters': merged_clusters,
+        'mean time': merged_mean_time,
+        'timestamps': [timestamps_valid[indices] for indices in merged_clusters],
+        'x': [x_coords_valid[indices] for indices in merged_clusters],
+        'y': [y_coords_valid[indices] for indices in merged_clusters],
+        'start': [min(timestamps_valid[indices])-first_timestamp for indices in merged_clusters],
+        'end': [max(timestamps_valid[indices])-first_timestamp for indices in merged_clusters],
+        'period': [(max(timestamps_valid[indices]) - min(timestamps_valid[indices]))*1000 for indices in merged_clusters]
+    }
 
+    # Create the DataFrame from the cluster data
+    filtered_df = pd.DataFrame(cluster_data)
 
+    # Return the final DataFrame
+    return filtered_df
