@@ -1,6 +1,7 @@
 from sklearn.cluster import DBSCAN 
 import numpy as np
 import pandas as pd
+import sys
 
 def dbscan(event_array, first_timestamp, eps=3, min_samples=100):
     """
@@ -21,6 +22,11 @@ def dbscan(event_array, first_timestamp, eps=3, min_samples=100):
     # Apply DBSCAN clustering
     db = DBSCAN(eps=eps, min_samples=min_samples)
     labels = db.fit_predict(event_array)
+
+    # Check if any clusters (labels other than -1) are found
+    if np.all(labels == -1):
+        print("Exiting: No clusters found (all labels are -1).")
+        sys.exit(1)
     
     # Extract coordinates and timestamps from the event_array
     x_coords = event_array[:, 0]
