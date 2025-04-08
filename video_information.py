@@ -78,7 +78,7 @@ def collect_on_events(capture, num_batches, df_histogram):
                 #relative_time = event_time - first_timestamp  # make relative to start
 
                 if (time1+first_timestamp) <= event_time <= (time2+first_timestamp):
-                    on_events_list.append((e.x(), e.y(), event_time*1000_00)) # event_array time is in 10 microsec
+                    on_events_list.append((e.x(), e.y(), event_time*5_000)) # event_array time is in 200 microsec
 
         batch_count += 1
 
