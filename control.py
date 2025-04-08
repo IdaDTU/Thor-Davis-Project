@@ -1,3 +1,5 @@
+##
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -78,9 +80,9 @@ df_histogram = df_histogram[(df_histogram['timestamps_sec'] >= time1) & (df_hist
 
 event_array, first_timestamp = collect_on_events(capture, num_batches, df_histogram)
 #%%
-eps = 5
-min_samples = 15
-min_clusters = 1100
+eps = 7
+min_samples = 120
+min_clusters = 1400
 
 # Find clusters
 df = dbscan(event_array,      # input time is in 200 microseconds
@@ -107,6 +109,10 @@ size = calculate_cluster_sizes2(filtered_df)
 
 rate = calculate_event_rate(total_events, 
                             filtered_df['period'])
+#%%
+print("Timestamps sample:", filtered_df['timestamps'].iloc[0])
+print("Counts sample:", df_histogram['count'].iloc[1])
+
 
 # Print/save output df
 output_df = create_and_save_df2(filtered_df,
@@ -122,8 +128,8 @@ output_df = create_and_save_df2(filtered_df,
 
 #%% Histogram samlet
 # --- Cluster data setup ---
-output_df['second_bin'] = output_df['max event time'].astype(int)
-bin_range = np.arange(130)
+output_df['second_bin'] = output_df['total events'].astype(int)
+bin_range = np.arange(0, 130, 0.5)
 
 cluster_binned = (
     output_df.groupby('second_bin')['total events']
@@ -151,7 +157,6 @@ ax1.bar(
     np.abs(signal_binned['SignalStrengthKA']),
     width=0.9,
     color='skyblue',
-    edgecolor='black',
     alpha=0.6,
     label='Summed Signal Strength (kA)'
 )
@@ -174,8 +179,8 @@ ax2.tick_params(axis='y', labelcolor='darkorange')
 
 # X-ticks every 5 seconds
 plt.xticks(
-    ticks=np.arange(0, 131, 5),
-    labels=[f"{s}s" for s in np.arange(0, 131, 5)],
+    ticks=np.arange(0, 131, 10),
+    labels=[f"{s}s" for s in np.arange(0, 131, 10)],
     rotation=45
 )
 
@@ -211,7 +216,7 @@ print(f"Best lag: {best_lag}")
 plt.figure(figsize=(10,4))
 plt.plot(lags, correlation)
 plt.title("Cross-correlation")
-plt.xlabel("Lag [s]")
+plt.xlabel("Lag")
 plt.ylabel("Correlation coefficient")
 plt.grid(True)
 plt.tight_layout()
@@ -238,7 +243,7 @@ ax1.bar(
     strength,
     width=0.9,
     color='skyblue',
-    alpha=0.6,
+    alpha=0.9,
     label='Summed Signal Strength (kA)'
 )
 ax1.set_xlabel('Time Since Start (s)')
@@ -260,13 +265,13 @@ ax2.tick_params(axis='y', labelcolor='darkorange')
 
 # X-ticks every 5 seconds
 plt.xticks(
-    ticks=np.arange(0, 131, 5),
-    labels=[f"{s}s" for s in np.arange(0, 131, 5)],
+    ticks=np.arange(0, 261+best_lag, 15),
+    labels=[f"{s}s" for s in np.arange(0, 261+best_lag, 15)],
     rotation=45
 )
 
 # Titles and layout
-plt.title(f'eps: {eps}, min_samples: {min_samples}, min_clusters: {min_clusters}')
+plt.title(f'eps: {eps}, min_samples: {min_samples}, min_clusters: {min_clusters}, max correlation: {np.max(correlation)}')
 fig.tight_layout()
 ax1.grid(True, axis='y', linestyle='--', alpha=0.4)
 

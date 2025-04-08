@@ -1,3 +1,5 @@
+##
+
 from plotting import plot_event_distribution, plot_event_distribution2
 import numpy as np
 import pandas as pd
@@ -197,9 +199,11 @@ def create_and_save_df2(df, df_histogram, size, total_events, event_rate, filena
     
     # Timestamp of highest event count in each cluster
     max_event_times = []
+    max_event = []
     for times, counts in zip(df['timestamps'], df_histogram['count']):
         max_idx = np.argmax(counts)
         max_event_times.append(times.iloc[max_idx])
+        #max_event.append(counts[max_idx])
 
     cluster_number = list(range(0, len(df)))
     
@@ -211,6 +215,7 @@ def create_and_save_df2(df, df_histogram, size, total_events, event_rate, filena
         'period [ms]': df['period'] * 1000,
         'mean time': df['mean time'],
         'max event time': max_event_times,
+        #'max event': max_event,
         'size [px]': size,
         'total events': total_events,
         'event rate [event/ms]': event_rate / 1000,

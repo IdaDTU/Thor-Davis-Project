@@ -1,3 +1,5 @@
+##
+
 from sklearn.cluster import DBSCAN 
 import numpy as np
 import pandas as pd
@@ -131,9 +133,6 @@ def filter_and_merge_clusters(df, min_clusters=1, max_duration=0.5, time_toleran
        # print(f"{t:.6f} sec → frame {f}")
 
     return result_df
-
-
-
 
 
 
