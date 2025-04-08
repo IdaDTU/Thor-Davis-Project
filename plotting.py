@@ -3,79 +3,62 @@ import matplotlib.cm as cm
 import numpy as np
 import pandas as pd
 
-def plot_event_distribution(df_histogram, window_size=100, start_time=None, end_time=None, df=None, filename=None, show=True):
+def plot_event_distribution(df, df_histogram, start, end, xaxis='time', window_size=100, filename=None, show=True):
     """
-    Plots the event distribution over time from a dataframe within a specific time interval.
-    Adds average and moving average lines. Saves the plot as a PDF.
+    Plots the event distribution over time or frame for a single cluster.
 
     Parameters:
-    df_histogram (pd.DataFrame): DataFrame containing 'timestamps_sec' and 'count' columns
-    window_size (int): Window size for calculating the moving average
-    filename (str): The name of the PDF file to save the plot
-    start_time (float, optional): Start time of the interval to filter the data
-    end_time (float, optional): End time of the interval to filter the data
+    df (pd.DataFrame): Not directly used here but included for compatibility
+    df_histogram (pd.DataFrame): DataFrame with 'timestamps_sec', 'frames', and 'count' columns
+    start (float): Start of the cluster (in seconds or frames)
+    end (float): End of the cluster (in seconds or frames)
+    xaxis (str): 'time' or 'frame'
+    window_size (int): Window size for moving average
+    filename (str): Optional file name to save the plot
+    show (bool): Whether to display the plot
     """
-
-    # Filter the data based on the specified time interval
-    if start_time is not None and end_time is not None:
-        df_filtered = df_histogram[(df_histogram['timestamps_sec'] >= start_time) & (df_histogram['timestamps_sec'] <= end_time)]
-    elif start_time is not None:
-        df_filtered = df_histogram[df_histogram['timestamps_sec'] >= start_time]
-    elif end_time is not None:
-        df_filtered = df_histogram[df_histogram['timestamps_sec'] <= end_time]
+    if xaxis == 'time':
+        x_column = 'timestamps_sec'
+        margin = 0.002   #in seconds
+        xlabel = "Time [s]"
     else:
-        df_filtered = df_histogram
+        x_column = 'frames'
+        margin = 2
+        xlabel = "Frame"
 
-    # Ensure both columns are filtered together
-    df_filtered = df_filtered.dropna(subset=['timestamps_sec', 'count'])
-    
+    # Filter the histogram by the current cluster's range
+    df_filtered = df_histogram[
+        (df_histogram[x_column] >= start) &
+        (df_histogram[x_column] <= end)
+    ].dropna(subset=[x_column, 'count'])
+
+    # Sort for clean plotting
+    df_filtered = df_filtered.sort_values(by=x_column)
+
+    if df_filtered.empty:
+        print(f"Warning: No data in {x_column} between {start} and {end}. Skipping plot.")
+        return 0
+
     total_events = df_filtered['count'].sum()
-
-    # Calculate average and moving average
     avg_count = df_filtered['count'].mean()
     moving_avg = df_filtered['count'].rolling(window=window_size).mean()
 
-    # Plotting
+    xdata = df_filtered[x_column]
+
+    # Begin plotting
     plt.figure(figsize=(15, 5))
-
-    # Event count
-    plt.plot(
-        df_filtered['timestamps_sec'],
-        df_filtered['count'],
-        marker='o',
-        linestyle='-',
-        label='Event Count',
-        color='lightsteelblue')
-
-    # Moving average line
-    plt.plot(
-        df_filtered['timestamps_sec'],
-        moving_avg,
-        color='steelblue',
-        linestyle='-',
-        linewidth=2,
-        label='Moving Average')
-    
-    # Average line
+    plt.plot(xdata, df_filtered['count'], marker='o', linestyle='-', label='Event Count', color='lightsteelblue')
+    plt.plot(xdata, moving_avg, color='steelblue', linestyle='-', linewidth=2, label='Moving Average')
     plt.axhline(y=avg_count, color='darkblue', linestyle='--', linewidth=2, label="Average")
 
-    # Shaded cluster period
-    plt.axvspan(start_time + 0.02, end_time - 0.02, color='red', alpha=0.2)
-
-    # Labels and title
-    plt.xlabel("Time [s]")
+    plt.axvspan(start, end, color='red', alpha=0.2)
+    plt.xlabel(xlabel, fontsize=14)
+    plt.xlim(start - margin, end + margin)
     plt.ylabel("Event Count")
-    
-    # Add a title
-    if start_time is not None and end_time is not None:
-        plt.title(f"Event Distribution from {start_time:.2f}s to {end_time:.2f}s. Total events: {total_events}")
-    else:
-        plt.title("Event Distribution")
-
-    # Grid and legend
+    plt.title(f"Event Distribution from {start:.2f} to {end:.2f} ({xaxis}). Total events: {total_events}")
     plt.grid(True)
     plt.legend()
-    
+
     if filename:
         plt.savefig(filename, format='pdf', bbox_inches='tight', dpi=300)
         print(f"Plot saved as {filename}.pdf")
@@ -84,8 +67,78 @@ def plot_event_distribution(df_histogram, window_size=100, start_time=None, end_
         plt.show()
     else:
         plt.close()
-    
+
     return total_events
+
+
+def plot_event_distribution2(df, df_histogram, start, end, xaxis='time', window_size=100, filename=None, show=True):
+    """
+    Plots the event distribution over time or frame for a single cluster.
+
+    Parameters:
+    df (pd.DataFrame): Not directly used here but included for compatibility
+    df_histogram (pd.DataFrame): DataFrame with 'timestamps_sec', 'frames', and 'count' columns
+    start (float): Start of the cluster (in seconds or frames)
+    end (float): End of the cluster (in seconds or frames)
+    xaxis (str): 'time' or 'frame'
+    window_size (int): Window size for moving average
+    filename (str): Optional file name to save the plot
+    show (bool): Whether to display the plot
+    """
+    if xaxis == 'time':
+        x_column = 'timestamps_sec'
+        margin = 0.02   # in seconds
+        xlabel = "Time [s]"
+    else:
+        x_column = 'frames'
+        margin = 2
+        xlabel = "Frame"
+
+    # Data for plotting (includes margin)
+    df_plot = df_histogram[
+        (df_histogram[x_column] >= start - margin) &
+        (df_histogram[x_column] <= end + margin)
+    ].dropna(subset=[x_column, 'count']).sort_values(by=x_column)
+
+    # Data for statistics (excludes margin)
+    df_stats = df_histogram[
+        (df_histogram[x_column] >= start) &
+        (df_histogram[x_column] <= end)
+    ].dropna(subset=[x_column, 'count'])
+
+    total_events = df_stats['count'].sum()
+    avg_count = df_histogram['count'].mean()
+
+    # Create a rolling average on the plotting data (use available data)
+    moving_avg = df_plot['count'].rolling(window=window_size).mean()
+    xdata = df_plot[x_column]
+
+    # Begin plotting
+    plt.figure(figsize=(15, 5))
+    plt.plot(xdata, df_plot['count'], marker='o', linestyle='-', label='Event Count', color='lightsteelblue')
+    plt.plot(xdata, moving_avg, color='steelblue', linestyle='-', linewidth=2, label='Moving Average')
+    plt.axhline(y=avg_count, color='darkblue', linestyle='--', linewidth=2, label="Average (within range)")
+
+    plt.axvspan(start, end, color='red', alpha=0.2)
+    plt.xlabel(xlabel, fontsize=14)
+    plt.xlim(start - margin, end + margin)
+    plt.ylabel("Event Count")
+    plt.title(f"Event Distribution from {start:.2f} to {end:.2f} ({xaxis}). Total events: {total_events}")
+    plt.grid(True)
+    plt.legend()
+
+    if filename:
+        plt.savefig(filename, format='pdf', bbox_inches='tight', dpi=300)
+        print(f"Plot saved as {filename}.pdf")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+    return total_events
+
+
 
 def plot_cluster_locations(df, title="Cluster Locations", filename=None, show=True):
     """
@@ -117,6 +170,8 @@ def plot_cluster_locations(df, title="Cluster Locations", filename=None, show=Tr
     plt.title(title)
     plt.xlabel("x [px]")
     plt.ylabel("y [px]")
+    plt.xlim(0,346)
+    plt.ylim(0.260)
     
     # Limit to first 15 legend entries if there are too many
     handles, labels = plt.gca().get_legend_handles_labels()
