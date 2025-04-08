@@ -18,7 +18,7 @@ CUR = [entry['signalStrengthKA'] for entry in LYN]
 TIME = [entry['time'] for entry in LYN]
 CLOUD = [entry['cloud'] for entry in LYN]
 MULTI = [entry['multiplicity'] if 'multiplicity' in entry else None for entry in LYN]
-#CLOUD = [entry['numCloudPulses'] if 'numCloudPulses' in entry else None for entry in LYN]
+PULSE = [entry['numCloudPulses'] if 'numCloudPulses' in entry else None for entry in LYN]
 
 #%% Create DataFrame
 import numpy as np
@@ -26,10 +26,12 @@ import numpy as np
 df = pd.DataFrame({
     'Longitude': LON,
     'Latitude': LAT,
-    'SignalStrengthKA': np.abs(CUR),
+    'SignalStrengthKA_abs': np.abs(CUR),
+    'SignalStrengthKA': CUR,
     'time': TIME,
     'cloud': CLOUD,
-    'multiplicity': MULTI
+    'multiplicity': MULTI,
+    'numCloudPulses':PULSE
 })
 
 
@@ -90,7 +92,7 @@ dtu_navy = '#030F4F'
 
 # Spatial filter for plot
 lon_min_plot, lon_max_plot = 10, 42
-lat_min_plot, lat_max_plot = -35, 0
+lat_min_plot, lat_max_plot = -35, -14
 
 # Create linear colormap from DTU red to white
 dtu_reds = LinearSegmentedColormap.from_list("dtu_reds", [dtu_navy,dtu_red])
@@ -139,7 +141,7 @@ ts = load.timescale()
 sat = EarthSatellite(line1, line2, "ISS", ts)
 
 # Time window centered at TLE epoch
-minutes = np.arange(0, 7)  # 7 values
+minutes = np.arange(0, 2.16)  # 7 values
 times = ts.utc(2023, 12, 30, 20, 4 + minutes)
 
 # Satellite subpoint positions
@@ -274,86 +276,69 @@ plt.show()
 
 
 #%%
-
-# Plot timeline
 import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 
-# Define color mapping
-type_colors = {
-    'Both': 'purple',
-    'Not Classified': 'green',
-    'Multi-Strike': 'red',
-    'Inter-Cloud': 'blue'
-}
+# Bin into 1-second intervals (floor to integer seconds)
+filtered_df['second_bin'] = filtered_df['seconds'].astype(int)
 
-# Map colors to each row based on 'type'
-bar_colors = filtered_df['type'].map(type_colors).fillna('gray')
+# Aggregate by second: sum SignalStrengthKA
+binned_df = filtered_df.groupby('second_bin')['SignalStrengthKA'].sum().reset_index()
 
+binned_df['SignalStrengthKA_abs'] = binned_df['SignalStrengthKA'].abs()
+
+# Plot
 plt.figure(figsize=(14, 4))
-
-# Bar plot of SignalStrengthKA
 plt.bar(
-    filtered_df['seconds'],
-    filtered_df['SignalStrengthKA'],  # Use absolute values
-    width=0.5,
-    color=bar_colors,
+    binned_df['second_bin'],
+    binned_df['SignalStrengthKA_abs'],
+    width=0.9,
+    color='skyblue',
     edgecolor='black',
-    alpha=0.8)
-
-
-plt.xlabel('Seconds Since Start')
-plt.ylabel('Signal Strength (kA)')
-plt.title('Signal Strength of Lightning Events (Colored by Type)')
-
-# Custom legend
-legend_elements = [
-    plt.Line2D([0], [0], marker='s', linestyle='None', color='w', label=label,
-               markerfacecolor=color, markeredgecolor='black', markersize=10)
-    for label, color in type_colors.items()
-]
-
-plt.legend(
-    title='Type',
-    handles=legend_elements,
-    loc='lower left',
-    ncol=2
+    alpha=0.8
 )
 
+plt.xlabel('Seconds Since Start')
+plt.ylabel('Summed Signal Strength (kA)')
+plt.title('1-Second Binned Signal Strength of Lightning Events')
 
 plt.tight_layout()
 plt.grid(True, axis='y', linestyle='--', alpha=0.4)
 plt.show()
 
 
-#%% Compute distance between ligtning
-# Ensure sorted by time
-filtered_df = filtered_df.sort_values('seconds').reset_index(drop=True)
-print(filtered_df)
+#%%
+# Correlation between SignalStrengthKA and multiplicity
+corr_signed = filtered_df['SignalStrengthKA'].corr(filtered_df['multiplicity'])
 
-# Calculate time difference to next strike
-filtered_df['seconds_to_next'] = filtered_df['seconds'].shift(-1) - filtered_df['seconds']
-# Last row will have NaN since there's no "next" event
+# Correlation between SignalStrengthKA_abs and multiplicity
+corr_abs = filtered_df['SignalStrengthKA_abs'].corr(filtered_df['multiplicity'])
 
-# Timeline of time diffrence for strikes in filtered area
-fig, ax = plt.subplots(figsize=(10, 3))
-
-# Bar plot instead of line plot
-ax.bar(filtered_df.index, filtered_df['seconds_to_next'], width=1.0, color='skyblue')
-
-ax.set_xlabel("Strike Index")
-ax.set_ylabel("Time to Next Strike (ms)")
-ax.set_title("Time Difference Between Lightning Strikes")
-ax.axhline(2, color='red', linestyle='--', label='2s threshold')
-ax.legend()
-ax.grid(True, linestyle='--', alpha=0.7)
-
-fig.tight_layout()
-plt.show()
+print(f"Correlation (signed): {corr_signed:.3f}")
+print(f"Correlation (absolute): {corr_abs:.3f}")
 
 
+# Convert everything to lowercase strings and then check for 'true'
+filtered_df['cloud_bool'] = filtered_df['cloud'].astype(str).str.lower() == 'true'
+filtered_df['cloud_int'] = filtered_df['cloud_bool'].astype(int)
+
+# Compute correlations
+corr_signed = filtered_df['SignalStrengthKA'].corr(filtered_df['cloud_int'])
+corr_abs = filtered_df['SignalStrengthKA_abs'].corr(filtered_df['cloud_int'])
+
+print(f"Correlation between SignalStrengthKA and cloud: {corr_signed:.3f}")
+print(f"Correlation between SignalStrengthKA_abs and cloud: {corr_abs:.3f}")
 
 
+#%% Correlation between SignalStrengthKA and multiplicity
+corr_signed = filtered_df['SignalStrengthKA'].corr(filtered_df['numCloudPulses'])
 
+# Correlation between SignalStrengthKA_abs and multiplicity
+corr_abs = filtered_df['SignalStrengthKA_abs'].corr(filtered_df['numCloudPulses'])
+
+print(corr_signed)
+print(corr_abs)
 
 
 
