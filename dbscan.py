@@ -22,7 +22,7 @@ def dbscan(event_array, first_timestamp, eps=3, min_samples=100):
     # Apply DBSCAN clustering
     db = DBSCAN(eps=eps, min_samples=min_samples)
     labels = db.fit_predict(event_array)
-
+    
     # Check if any clusters (labels other than -1) are found
     if np.all(labels == -1):
         print("Exiting: No clusters found (all labels are -1).")
@@ -37,7 +37,7 @@ def dbscan(event_array, first_timestamp, eps=3, min_samples=100):
     df = pd.DataFrame({
         'x': x_coords,
         'y': y_coords,
-        'timestamp': timestamps/100000 - first_timestamp,
+        'timestamp': timestamps/5000 - first_timestamp,    #change according to input time
         'labels': labels
     })
     
@@ -92,7 +92,7 @@ def filter_and_merge_clusters(df, min_clusters=1, max_duration=0.5, time_toleran
         indices = np.where(labels_valid == short_clusters[i])[0]
         found = False
         for j, existing_time in enumerate(merged_mean_times):
-            if abs(mean_time - existing_time) < time_tolerance:
+            if abs(mean_time - existing_time) <= time_tolerance:
                 merged_clusters[j].extend(indices)
                 found = True
                 break
@@ -131,6 +131,9 @@ def filter_and_merge_clusters(df, min_clusters=1, max_duration=0.5, time_toleran
        # print(f"{t:.6f} sec → frame {f}")
 
     return result_df
+
+
+
 
 
 
