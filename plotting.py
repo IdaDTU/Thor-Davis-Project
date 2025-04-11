@@ -95,12 +95,23 @@ def plot_event_distribution2(df, df_histogram, start, end, xaxis='time', window_
         x_column = 'frames'
         margin = 2
         xlabel = "Frame"
-
-    # Data for plotting (includes margin)
+    
+    # First filter based on x_column (e.g., 'timestamps_sec')
     df_plot = df_histogram[
-        (df_histogram[x_column] >= start - margin) &
-        (df_histogram[x_column] <= end + margin)
+    (df_histogram[x_column] >= start - margin) &
+    (df_histogram[x_column] <= end + margin)
     ].dropna(subset=[x_column, 'count']).sort_values(by=x_column)
+
+    # Now filter based on x being within 50 pixels of a reference point
+    reference_x = df_plot['x'].mean()  # <-- define this based on your use case
+    pixel_tolerance = 30
+
+    df_plot = df_plot[
+    (df_plot['x'] >= reference_x - pixel_tolerance) &
+    (df_plot['x'] <= reference_x + pixel_tolerance)
+    ]
+
+    print(df_plot)
 
     # Data for statistics (excludes margin)
     df_stats = df_histogram[
@@ -109,6 +120,7 @@ def plot_event_distribution2(df, df_histogram, start, end, xaxis='time', window_
     ].dropna(subset=[x_column, 'count'])
 
     total_events = df_stats['count'].sum()
+    max_event = df_stats['count'].max()
     avg_count = df_histogram['count'].mean()
 
     # Create a rolling average on the plotting data (use available data)
@@ -138,7 +150,7 @@ def plot_event_distribution2(df, df_histogram, start, end, xaxis='time', window_
     else:
         plt.close()
 
-    return total_events
+    return total_events, max_event
 
 
 

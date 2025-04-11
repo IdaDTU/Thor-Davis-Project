@@ -21,24 +21,50 @@ def create_dataframe(file_path: str,
     """
     capture = dvp.io.MonoCameraRecording(file_path)
     all_on_timestamps = []
+    all_on_x = []
+    all_on_y = []
 
     for i in range(batches):
         events = capture.getNextEventBatch()
         for e in events:
             if e.polarity():  # On event
                 all_on_timestamps.append(e.timestamp())
+                all_on_x.append(e.x())
+                all_on_y.append(e.y())
 
     all_on_timestamps = np.array(all_on_timestamps)
     all_on_timestamps -= np.min(all_on_timestamps)  # Normalize timestamps
+    
+    x = np.array(all_on_x)
+    y = np.array(all_on_y)
 
     bin_edges = np.linspace(0, np.max(all_on_timestamps), num_bins + 1)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
     hist_counts, _ = np.histogram(all_on_timestamps, bins=bin_edges)
 
+    # New: Bin x and y (mean x and mean y per bin)
+    bin_indices = np.digitize(all_on_timestamps, bin_edges) - 1  # which bin each event falls into
+    binned_x = np.zeros(num_bins)
+    binned_y = np.zeros(num_bins)
+
+    for i in range(num_bins):
+        mask = bin_indices == i
+        if np.any(mask):
+            binned_x[i] = np.mean(x[mask])
+            binned_y[i] = np.mean(y[mask])
+        else:
+            binned_x[i] = np.nan  # or 0, depending on your preference
+            binned_y[i] = np.nan
+
+    print(len(bin_centers), len(hist_counts), len(binned_x), len(binned_y))
+
+
     return pd.DataFrame({
         'timestamps_sec': bin_centers / 1e6,  # Convert to seconds
         'count': hist_counts,
-        'frames': frame_rate * bin_centers / 1e6
+        'frames': frame_rate * bin_centers / 1e6,
+        #'x': binned_x,
+        #'y': binned_y
     })
 
 def collect_on_events(capture, num_batches, df_histogram):

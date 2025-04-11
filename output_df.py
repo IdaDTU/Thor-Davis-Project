@@ -29,11 +29,12 @@ def calculate_total_events(df, df_histogram, xaxis='time', filename=None, show=F
         end = df['end frame']
     
     total_events_list = []
+    max_event_list = []
 
     # Iterate over merged clusters
     for i, merged_cluster_indices in enumerate(merged_clusters):
 
-        total_events = plot_event_distribution2(
+        total_events, max_event = plot_event_distribution2(
             df=df,
             df_histogram=df_histogram,
             start=start.iloc[i].item(),
@@ -43,8 +44,9 @@ def calculate_total_events(df, df_histogram, xaxis='time', filename=None, show=F
             show=show
             )
         total_events_list.append(total_events)
+        max_event_list.append(max_event)
 
-    return total_events_list
+    return total_events_list, max_event_list
 
 def calculate_cluster_sizes(df):
     """
@@ -185,13 +187,14 @@ def create_and_save_df(df, size, total_events, event_rate, filename=None, decima
     
     return df
 
-def create_and_save_df2(df, df_histogram, size, total_events, event_rate, filename=None, decimals=3):
+def create_and_save_df2(df, df_histogram, size, total_events, max_event, event_rate, filename=None, decimals=3):
     import pandas as pd
     import numpy as np
 
     # Convert size, total_events, etc. to Series if they aren’t already
     size = pd.Series(size)
     total_events = pd.Series(total_events)
+    max_event = pd.Series(max_event)
     event_rate = pd.Series(event_rate)
     
     # Calculate frame_mean from lists in df['frames']
@@ -199,11 +202,9 @@ def create_and_save_df2(df, df_histogram, size, total_events, event_rate, filena
     
     # Timestamp of highest event count in each cluster
     max_event_times = []
-    max_event = []
     for times, counts in zip(df['timestamps'], df_histogram['count']):
         max_idx = np.argmax(counts)
         max_event_times.append(times.iloc[max_idx])
-        #max_event.append(counts[max_idx])
 
     cluster_number = list(range(0, len(df)))
     
@@ -215,9 +216,10 @@ def create_and_save_df2(df, df_histogram, size, total_events, event_rate, filena
         'period [ms]': df['period'] * 1000,
         'mean time': df['mean time'],
         'max event time': max_event_times,
-        #'max event': max_event,
         'size [px]': size,
         'total events': total_events,
+        'norm size': total_events*size,
+        'max event': max_event,
         'event rate [event/ms]': event_rate / 1000,
         'std (time) [ms]': df['std_time'] * 1000,
         'std (size) [px]': df['std_size'],
@@ -226,10 +228,9 @@ def create_and_save_df2(df, df_histogram, size, total_events, event_rate, filena
         'start frame': df['start frame'],
         'end frame': df['end frame']
     }
-
+    
     # Create DataFrame
     result_df = pd.DataFrame(data)
-
 
     # Row-wise eps study calculation
     result_df["eps study"] = np.sqrt(
@@ -241,7 +242,7 @@ def create_and_save_df2(df, df_histogram, size, total_events, event_rate, filena
 
     # Round values
     for col in ['start', 'end', 'period [ms]', 'mean time', 'max event time', 'size [px]',
-                'total events', 'event rate [event/ms]', 'std (time) [ms]',
+                'total events', 'norm size', 'event rate [event/ms]', 'std (time) [ms]',
                 'std (size) [px]', 'eps study', 'time until next strike [ms]']:
         result_df[col] = result_df[col].round(decimals)
 
