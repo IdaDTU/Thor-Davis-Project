@@ -45,6 +45,42 @@ def dbscan(event_array, first_timestamp, eps=3, min_samples=100):
     
     return df
 
+import hdbscan
+
+def Hdbscan(event_array, first_timestamp, min_cluster_size=100, min_samples=100):
+    """
+    Apply HDBSCAN clustering on the spatial and temporal data (x, y, timestamp).
+
+    Args:
+    - event_array (np.ndarray): A NumPy array with columns [x, y, timestamp] for the events.
+    - first_timestamp (float): The reference start time to normalize timestamps.
+    - min_cluster_size (int): The minimum size of clusters.
+    - min_samples (int): Number of samples in a neighborhood for a point to be a core point.
+
+    Returns:
+    - df (pd.DataFrame): A DataFrame with columns ['x', 'y', 'timestamp', 'labels']
+    """
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples)
+    labels = clusterer.fit_predict(event_array)
+
+    if np.all(labels == -1):
+        print("Exiting: No clusters found (all labels are -1).")
+        sys.exit(1)
+
+    x_coords = event_array[:, 0]
+    y_coords = event_array[:, 1]
+    timestamps = event_array[:, 2]
+
+    df = pd.DataFrame({
+        'x': x_coords,
+        'y': y_coords,
+        'timestamp': timestamps / 5000 - first_timestamp,
+        'labels': labels
+    })
+
+    return df
+
+
 def filter_and_merge_clusters(df, min_clusters=1, max_duration=0.5, time_tolerance=0.01, frame_rate=40):
     """
     Filter clusters based on the number of events and duration, and merge clusters with similar mean times.

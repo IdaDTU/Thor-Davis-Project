@@ -103,15 +103,15 @@ def plot_event_distribution2(df, df_histogram, start, end, xaxis='time', window_
     ].dropna(subset=[x_column, 'count']).sort_values(by=x_column)
 
     # Now filter based on x being within 50 pixels of a reference point
-    reference_x = df_plot['x'].mean()  # <-- define this based on your use case
-    pixel_tolerance = 30
+    #reference_x = df_plot['x'].mean()  # <-- define this based on your use case
+    #pixel_tolerance = 30
 
-    df_plot = df_plot[
-    (df_plot['x'] >= reference_x - pixel_tolerance) &
-    (df_plot['x'] <= reference_x + pixel_tolerance)
-    ]
+    #df_plot = df_plot[
+    #(df_plot['x'] >= reference_x - pixel_tolerance) &
+    #(df_plot['x'] <= reference_x + pixel_tolerance)
+    #]
 
-    print(df_plot)
+    #print(df_plot)
 
     # Data for statistics (excludes margin)
     df_stats = df_histogram[
