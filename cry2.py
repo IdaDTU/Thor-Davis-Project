@@ -3,6 +3,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+# Set global font settings
+plt.rcParams.update({
+    'font.size': 14,
+    'font.family': 'serif',
+    'mathtext.fontset': 'cm',  # Computer Modern
+})
+
 #%% LYNDATA
 # Load the data
 LYN = np.load("/Users/josephine/Library/CloudStorage/OneDrive-DanmarksTekniskeUniversitet/ThorDavis/Data/Nikon_2023_12_30_20_04_46.mov.LYN.npy", allow_pickle=True)
@@ -27,7 +34,6 @@ df = pd.DataFrame({
 })
 
 
-
 # Convert time to datetime and compute fractional minutes
 df['datetime'] = pd.to_datetime(df['time'])
 df['minutes'] = df['datetime'].dt.minute + df['datetime'].dt.second / 60 + df['datetime'].dt.microsecond / 1e6 / 60
@@ -48,16 +54,16 @@ df = pd.DataFrame({
 # Convert to datetime before filtering
 df['datetime'] = pd.to_datetime(df['datetime'])
 
-df.loc[(df['multiplicity'] > 0) & (df['cloud'] == 1), 'type'] = 'MS + IC'
+df.loc[(df['multiplicity'] > 0) & (df['cloud'] == 1), 'type'] = 'MS + CC'
 df.loc[(df['multiplicity'] > 0) & (df['cloud'] == 0), 'type'] = 'MS + CG'
-df.loc[(df['multiplicity'] > 0) & (pd.isna(df['cloud'])), 'type'] = 'MS'
-df.loc[(pd.isna(df['multiplicity'])) & (df['cloud'] == 1), 'type'] = 'IC'
+#df.loc[(df['multiplicity'] > 0) & (pd.isna(df['cloud'])), 'type'] = 'MS'
+df.loc[(pd.isna(df['multiplicity'])) & (df['cloud'] == 1), 'type'] = 'CC'
 df.loc[(pd.isna(df['multiplicity'])) & (df['cloud'] == 0), 'type'] = 'CG'
 df.loc[pd.isna(df['multiplicity']) & pd.isna(df['cloud']), 'type'] = 'Unknown'
 
 # Calculate time delta from the defined start timestamp
-start = pd.Timestamp("2023-12-30 20:04:28.000000+00:00")
-end = pd.Timestamp("2023-12-30 20:06:56.000000+00:00")
+start = pd.Timestamp("2023-12-30 20:04:28.000000+00:00")   #4:28
+end = pd.Timestamp("2023-12-30 20:06:18.000000+00:00")     #6:56
 
 # Time range filtering first
 filt_df = df[(df['datetime'] >= start) & (df['datetime'] <= end)].sort_values(by='datetime')
@@ -66,6 +72,8 @@ filt_df = df[(df['datetime'] >= start) & (df['datetime'] <= end)].sort_values(by
 filt_df['delta'] = filt_df['datetime'] - start
 filt_df['seconds_from_start'] = filt_df['delta'].dt.total_seconds()
 filt_df['minutes_from_start'] = filt_df['seconds_from_start'] / 60
+filt_df['type'] = filt_df['type'].fillna('Unknown')
+
 
 
 # Spatial filtering
@@ -75,7 +83,8 @@ filt_df = filt_df[(filt_df['Latitude'] >= lat_min) & (filt_df['Latitude'] <= lat
                   (filt_df['Longitude'] >= lon_min) & (filt_df['Longitude'] <= lon_max)]
 
 # Filter strikes that happened within the first 130 seconds
-first_130_sec_filt_df = filt_df[filt_df['seconds_from_start'] <= 130]
+first_130_sec_filt_df = filt_df[filt_df['seconds_from_start'] <= 110]
+print(len(first_130_sec_filt_df))
 from geopy.distance import geodesic
 from skyfield.api import load, EarthSatellite
 
@@ -115,7 +124,7 @@ filt_df.loc[:, 'weighted_strength'] = filt_df['SignalStrengthKA_abs'] / (filt_df
 #filt_df.loc[:, 'weighted_strength'] = 1
 
 print('Finished filtering!')
-print(filt_df['seconds_from_start'])
+print(len(filt_df['seconds_from_start']))
 
 #%% Cluster
 import dv_processing as dvp
@@ -125,8 +134,8 @@ import numpy as np
 import pandas as pd
 from video_information import create_dataframe, collect_on_events
 from plotting import plot_cluster_locations, plot_event_count, plot_event_timeline, plot_variable
-from dbscan import dbscan, Hdbscan, filter_and_merge_clusters
-from output_df import calculate_total_events, calculate_cluster_sizes, calculate_event_rate, create_and_save_df, create_and_save_df2, calculate_cluster_sizes2
+from dbscan import dbscan, Hdbscan, filter_and_merge_clusters, filter_and_merge_clusters2
+from output_df import calculate_total_events, calculate_cluster_sizes, calculate_event_rate, create_and_save_df, create_and_save_df2, calculate_cluster_sizes2, calculate_cluster_sizes3
 #%%
 # Define the path to your Aedat file
 FIL = glob.glob("/Users/josephine/Library/CloudStorage/OneDrive-DanmarksTekniskeUniversitet/ThorDavis/Data/dvSave-2023_12_30_20_04_46.aedat4", recursive=True)[0]
@@ -138,7 +147,7 @@ capture = dvp.io.MonoCameraRecording(FIL)
 print('2')
 # Choose what time interval to study. 
 time1 = 0         # seconds
-time2 = 130       # seconds
+time2 = 110       # seconds
 frame_rate = 40   # Davis 346: 40fps, Quickreader: 60fps (no periods before 1000)
 
 num_batches = min(math.ceil(1000 * time2), 41500)
@@ -154,7 +163,7 @@ event_array, first_timestamp = collect_on_events(capture, num_batches, df_histog
 #%%
 eps = 5
 min_samples = 4 # determines how sensitive it is to noise
-min_clusters = 1500
+min_clusters = 700
 time_tolerance = 1
 #name = 'OldTime_NewArea_500msBins'
 name = 'test'
@@ -178,24 +187,28 @@ cluster_counts = df['labels'].value_counts()
 cluster_counts[cluster_counts != -1].describe()
 
 
+
+
+
 #%%
 # Filter and merge clusters
-filtered_df = filter_and_merge_clusters(df,
+filtered_df = filter_and_merge_clusters2(df,
                                         min_clusters=min_clusters,    #1425     # amount of clusters to form a lightning
                                         max_duration=1,         # seconds
                                         time_tolerance=time_tolerance,     # seconds
                                         frame_rate=frame_rate)    
-#print(filtered_df.columns)
-
+print(len(filtered_df))
+#%%
 # Creating the output df and cluster histograms
 total_events, max_event = calculate_total_events(df=filtered_df,
                                       df_histogram=df_histogram,
                                       xaxis='time',    # either 'time' or 'frames'
-                                      filename=None,   # use strings and no format: fx: 'plot' or None
+                                      filename='FINAL',   # use strings and no format: fx: 'plot' or None
                                       show=False)       # either True or False
 
-size = calculate_cluster_sizes2(filtered_df)
-
+#%%
+size = calculate_cluster_sizes3(filtered_df)
+#%%
 rate = calculate_event_rate(total_events, 
                             filtered_df['period'])
 
@@ -207,7 +220,7 @@ output_df = create_and_save_df2(filtered_df,
                                total_events, 
                                max_event,
                                rate,
-                               filename = None,    # use strings and no format: fx: 'data' or None
+                               filename = 'final.csv',    # use strings and no format: fx: 'data' or None
                                decimals = 3)
 # Temporarily expand display to show full DataFrame
 with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', None):
@@ -220,70 +233,103 @@ print('Max event times:', len(output_df['max event time']))
 print('Max events:', len(output_df['max event']))
 #print(output_df['max event'])
 print('GLD times:', len(filt_df['seconds_from_start']))
-print(filt_df['seconds_from_start'])
+#print(filt_df['seconds_from_start'])
 print('GLD strength:', len(filt_df['weighted_strength']))
 #print(filt_df['weighted_strength'])
 
+#%%  ------------- prik-before -------------------
 
-#%% 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
+from matplotlib.lines import Line2D
+from matplotlib.font_manager import FontProperties
 
-# Extract data
 max_event_times = output_df['max event time'] #+ 28
-#max_events = output_df['max event']
 max_events = np.ones(len(max_event_times))
-
+mean_time = output_df['mean time']
+start_times = np.array(output_df['start'])
+period = output_df['period [ms]']/1000
 
 gld_times = filt_df['seconds_from_start'] # leap seconds
-#gld_strength = filt_df['weighted_strength']
-gld_strength = np.ones(len(gld_times))
+gld_strength = 0.7 * np.ones(len(gld_times))
 
 
-#%%  ------------- prik-before -------------------
-import matplotlib.pyplot as plt
-import numpy as np
 
 # Set up the figure
 plt.figure(figsize=(15, 5))
 
 # Plot Max Events as blue bars +0.352
-plt.bar(max_event_times+0.2, max_events, width=0.3, color='tab:orange', label='Max Events')
+#plt.bar(max_event_times, max_events, width=0.3, color='tab:orange', label='Max Events')
+
+visible_widths = np.maximum(period, 0.15)  # e.g., force at least 0.2 seconds wide
+#plt.bar(start_time, max_events, width=visible_widths, align='edge', color='#e89e42', label='Max Events')
+bar_handle = plt.bar(
+    start_times,
+    max_events,
+    width=visible_widths,
+    align='edge',
+    color='#e89e42',
+    label='DBSCAN',
+    zorder=1
+)
 
 type_colors = {
-	'MS + IC': '#FF7F0E',
-	'MS + CG': '#1F77B4',
-	'MS': '#2CA02C',
-	'IC': '#D62728',
-	'CG': '#9467BD',
-	'Unknown': '#A9A9A9'
+	'MS + CC': '#66a386',
+	'MS + CG': '#1d468b',
+	#'MS': '#9370DB',
+	'CC': '#c0281b',
+	'CG': '#6fbcbc',
+	'Unknown': '#9370DB'
 	}
 
 for t, color in type_colors.items():
- 	subset = filt_df[filt_df['type'] == t]
- 	plt.scatter(
- 		subset['seconds_from_start'],
- 		np.ones(len(subset['seconds_from_start'])),
- 		s=10,
- 		color=color,
- 		alpha=1,
- 		label=t
- 		)
-
-# Plot GLD times as red dots
-#plt.scatter(gld_times, gld_strength, color='blue', s=10, label='GLD Detections', zorder=5)
+    subset = filt_df[filt_df['type'] == t]
+    plt.scatter(
+        subset['seconds_from_start'],
+        0.9 * np.ones(len(subset['seconds_from_start'])),
+        s=30,
+        color=color,
+        alpha=1,
+        label=t
+    )
 
 # Labels and formatting
-plt.xlabel('Time (s)')
-plt.ylabel('Event Presence')
-plt.title('Event Times (bars) and GLD Times (dots)')
-plt.legend()
+plt.xlabel("Time [s]", fontsize=14, family='serif')
+#plt.title('Temporal Distribution of DBSCAN Clusters and GLD Lightnings')
+
+# First legend: for the bar plot
+bar_legend = plt.legend(
+    handles=[bar_handle[0]],  # just one bar needed for the legend symbol
+    labels=['Clusters'],
+    title='    DBSCAN     ',
+    loc='upper right',
+    prop={'family': 'serif', 'size': 14},
+    title_fontproperties=FontProperties(family='serif', size=14),
+    bbox_to_anchor=(1, 0.65)
+)
+plt.gca().add_artist(bar_legend)  # prevent it from being overridden
+
+
+# Second legend: for the GLD types
+scatter_legend_dots = [
+    Line2D([0], [0], marker='o', color='none', markerfacecolor=color,markeredgecolor='none',  markersize=6, label=label)
+    for label, color in type_colors.items()
+]
+plt.legend(
+    handles=scatter_legend_dots,
+    title='GLD Types',
+    loc='lower right',
+    prop={'family': 'serif', 'size': 14},
+    title_fontproperties=FontProperties(family='serif', size=14)
+)
+
 plt.grid(True, linestyle='--', alpha=0.5)
-plt.xticks(rotation=45)
-plt.locator_params(axis='x', nbins=10)  # Reduce number of ticks
+plt.xlim(0,110)
+plt.locator_params(axis='x', nbins=25)  # Reduce number of ticks
+plt.gca().get_yaxis().set_visible(False)
+plt.xticks(fontsize=14, family='serif')
 plt.tight_layout()
-#plt.savefig(f'/zhome/57/6/168999/Desktop/ThorDavis/hdbscan/final/{min_clusters}_{min_samples}_{time_tolerance}_prikbefore_{name}.png', dpi=300) 
+plt.savefig('/Users/josephine/Desktop/before.pdf', dpi=300, bbox_inches='tight', format='pdf') 
 plt.show()
 
 
@@ -294,7 +340,8 @@ from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 
 # Assume these are your arrays of event and GLD times in seconds
-event_times = np.array(max_event_times)        # from bars (orange)
+#event_times = np.array(max_event_times)        # from bars (orange)
+event_times = np.array(start_times) 
 gld_times = np.array(filt_df['seconds_from_start'])           # from dots (colored)
 
 # Create a common time axis
@@ -326,7 +373,7 @@ corr = correlate(event_series, gld_series, mode='full')
 lags = np.arange(-len(event_series) + 1, len(event_series)) * dt
 
 # Get indices of the 5 highest correlation values
-top_5_indices = np.argsort(corr)[-5:][::-1]  # descending order
+top_5_indices = np.argsort(corr)[-1:][::-1]  # descending order
 
 # Get the corresponding lags and correlation values
 top_5_lags = lags[top_5_indices]
@@ -347,310 +394,104 @@ print(f'Max correlation: {max_corr_value:.3f}')
 
 # Plot
 plt.figure(figsize=(12, 5))
-plt.scatter(lags, corr, color='purple')
-plt.scatter(best_lag, max_corr_value, s=20, color='pink', label=f'Best lag: {best_lag}s')
-plt.axvline(0, color='gray', linestyle='--')
-plt.title("Cross-Correlation between Event Times and GLD Times")
-plt.xlabel("Lag (seconds)")
-plt.ylabel("Cross-correlation")
+plt.scatter(lags, corr, s=70, alpha=0.7, color='#e89e42', label='Cross-Correlation')
+plt.scatter(best_lag, max_corr_value, s=100, color='#e89e42', edgecolor='black',linewidth=1.5, label=f'Best lag: {best_lag}s')
+#plt.title("Cross-Correlation between Clusters and GLD Lightnings")
+plt.xlabel("Lag [s]")
+plt.ylabel("Cross-Correlation Value")
 plt.legend()
-plt.grid(True)
+plt.grid(True, zorder=0)
 plt.tight_layout()
 #plt.savefig(f'/zhome/57/6/168999/Desktop/ThorDavis/hdbscan/final/{min_clusters}_{min_samples}_{time_tolerance}_prikcorr_{name}.png', dpi=300) 
 plt.show()
 
-
-
 #%% # prik-after ----------------
-
+print(start_times)
+# Set up the figure
 plt.figure(figsize=(15, 5))
+#plt.figure(figsize=(8, 5))
 
-shifted_event = max_event_times.copy()
-shifted_event = shifted_event + best_lag  # or best_lag_seconds if you already calculated it
+# Plot Max Events as blue bars +0.352
+#plt.bar(max_event_times, max_events, width=0.3, color='tab:orange', label='Max Events')
 
-# Plot Max Events as blue bars
-plt.bar(shifted_event, np.ones(len(shifted_event)), width=0.3, color='tab:orange', label='Max Events')
+#plt.bar(start_time, max_events, width=visible_widths, align='edge', color='#e89e42', label='Max Events')
+bar_handle = plt.bar(
+    start_times + np.abs(best_lag),
+    max_events,
+    #width=visible_widths,
+    width=period,
+    align='edge',
+    color='#e89e42',
+    label='DBSCAN',
+    zorder=1
+)
+
+type_colors = {
+	'MS + CC': '#66a386',
+	'MS + CG': '#1d468b',
+	#'MS': '#9370DB',
+	'CC': '#c0281b',
+	'CG': '#6fbcbc',
+	'Unknown': '#9370DB'
+	}
 
 for t, color in type_colors.items():
  	subset = filt_df[filt_df['type'] == t]
  	plt.scatter(
  		subset['seconds_from_start'],
- 		np.ones(len(subset['seconds_from_start'])),
- 		s=10,
+ 		0.9 * np.ones(len(subset['seconds_from_start'])),
+ 		s=30,
  		color=color,
  		alpha=1,
  		label=t
  		)
 
+# Plot GLD times as red dots
+#plt.scatter(gld_times, gld_strength, color='blue', s=10, label='GLD Detections', zorder=5)
+
 # Labels and formatting
-plt.xlabel('Time (s)')
-plt.ylabel('Event Presence')
-plt.title('Event Times (bars) and GLD Times (dots)')
-plt.legend()
+plt.xlabel("Time [s]", fontsize=16, family='serif')
+
+#plt.title('Temporal Distribution of DBSCAN Clusters and GLD Lightnings')
+
+# First legend: for the bar plot
+bar_legend = plt.legend(
+    handles=[bar_handle[0]],  # just one bar needed for the legend symbol
+    labels=['Clusters'],
+    title='    DBSCAN     ',
+    loc='upper right',
+    prop={'family': 'serif', 'size': 14},
+    title_fontproperties=FontProperties(family='serif', size=14),
+    bbox_to_anchor=(1, 0.65)
+)
+plt.gca().add_artist(bar_legend)  # prevent it from being overridden
+
+
+# Second legend: for the GLD types
+scatter_legend_dots = [
+    Line2D([0], [0], marker='o', color='none', markerfacecolor=color,markeredgecolor='none',  markersize=6, label=label)
+    for label, color in type_colors.items()
+]
+
+plt.legend(
+    handles=scatter_legend_dots,
+    title='GLD Types',
+    loc='lower right',
+    prop={'family': 'serif', 'size': 14},
+    title_fontproperties=FontProperties(family='serif', size=14)
+)
+
+
+
 plt.grid(True, linestyle='--', alpha=0.5)
-plt.xticks(rotation=45)
-plt.locator_params(axis='x', nbins=10)  # Reduce number of ticks
+plt.xlim(0,110)
+#plt.xlim(98.3,99.92)
+plt.ylim(0,1)
+plt.xticks(fontsize=14, family='serif')
+plt.locator_params(axis='x', nbins=25)  # Reduce number of ticks
+#plt.locator_params(axis='x', nbins=10)
+plt.gca().get_yaxis().set_visible(False)
 plt.tight_layout()
-#plt.savefig(f'/zhome/57/6/168999/Desktop/ThorDavis/hdbscan/final/{min_clusters}_{min_samples}_{time_tolerance}_prikafter_{name}.png', dpi=300) 
+plt.savefig('/Users/josephine/Desktop/after.pdf', dpi=300, bbox_inches='tight', format='pdf') 
 plt.show()
 
-
-
-
-
-#%% binned plots -------------------
-
-# Create bins from 0 to max time using variable bin_size
-max_time = max(max_event_times.max(), gld_times.max())
-bins = np.arange(0, np.ceil(max_time) + bin_size, bin_size)
-
-# Bin max events
-event_binned = pd.DataFrame({'time': max_event_times, 'event': max_events})
-event_binned = event_binned.groupby(pd.cut(event_binned['time'], bins), observed=False).sum()
-event_binned.index = event_binned.index.map(lambda x: x.left)
-
-# Bin GLD strength
-# Create bin labels
-gld_binned = pd.DataFrame({
-    'time': gld_times,
-    'strength': gld_strength,
-    'type': filt_df['type']
-})
-gld_binned['bin'] = pd.cut(gld_binned['time'], bins, labels=bins[:-1], include_lowest=True)
-
-# Now group by bin and type
-gld_grouped = gld_binned.groupby(['bin', 'type'], observed=False)['strength'].sum().reset_index()
-gld_grouped['bin'] = gld_grouped['bin'].astype(float)  # convert Interval index to float bin start
-
-# Create aligned time axis
-all_times = np.arange(0, np.ceil(max_time), bin_size)
-event_binned = event_binned.reindex(all_times, fill_value=0)
-gld_binned = gld_binned.reindex(all_times, fill_value=0)
-
-# Plot
-fig, ax1 = plt.subplots(figsize=(15, 6))
-bar_width = 0.3  # scale bar width with bin size
-
-# Plot max events (orange)
-#ax1.bar(all_times - bar_width/2, event_binned['event'], width=bar_width,
-       # color='tab:orange', label='Max Events', alpha=0.7)
-ax1.bar(event_binned['time'] - bar_width/2, event_binned['event'], width=bar_width,
-        color='tab:orange', label='Max Events', alpha=0.7)
-ax1.set_ylabel('Max Events', color='tab:orange')
-ax1.tick_params(axis='y', labelcolor='tab:orange')
-
-# Continue plotting
-ax2 = ax1.twinx()
-
-for t, color in type_colors.items():
-    subset = gld_grouped[gld_grouped['type'] == t]
-    subset = subset[subset['strength'] > 0]
-    ax2.scatter(
-        subset['bin'],
-        subset['strength'],
-        s=10,
-        color=color,
-        alpha=1,
-        label=t
-    )
-    
-ax2.set_ylabel('GLD Strength', color='tab:blue')
-ax2.tick_params(axis='y', labelcolor='tab:blue')
-ax2.legend(title='Lightning Type', loc='upper left', bbox_to_anchor=(1.05,1))
-
-# Auto-adjust x-axis ticks based on bin size
-tick_interval = max(1, 10, 10)  # adjust how frequent ticks should be
-xticks = np.arange(0, np.ceil(max_time), tick_interval)
-ax1.set_xticks(xticks)
-ax1.set_xlim(0, np.ceil(max_time))  # ensure all bars are visible
-
-# Optional: rotate x-tick labels if very dense
-if bin_size < 0.5:
-    plt.xticks(rotation=45)
-
-# Final formatting
-ax1.set_xlabel('Time (s)')
-plt.title(f'Binned Max Events and GLD Strength ({bin_size}s bins)')
-plt.tight_layout()
-#plt.savefig(f'/zhome/57/6/168999/Desktop/ThorDavis/hdbscan/final/{min_clusters}_{min_samples}_{time_tolerance}_before_{name}.png', dpi=300) 
-plt.show()
-plt.close()
-#%%
-# Find overlapping non-zero bins
-overlap_mask = (event_binned['event'] > 0) & (gld_binned['strength'] > 0)
-num_overlapping_bins = overlap_mask.sum()
-
-print(f"Number of overlapping bins before shift: {num_overlapping_bins}")
-bin_interval = 500
-# Convert GLD presence to a binary array
-gld_binary = (gld_binned['strength'] > 0).astype(int)
-
-# Create a rolling sum over ±10 bins (21-bin window centered)
-gld_window = gld_binary.rolling(window=bin_interval*2+1, center=True, min_periods=1).sum()
-
-# Any event bin with gld_window > 0 is within ±10 bins of a GLD
-fuzzy_overlap_mask = (event_binned['event'] > 0) & (gld_window > 0)
-fuzzy_overlap_count = fuzzy_overlap_mask.sum()
-
-print(f"Number of fuzzy-overlapping bins (within ± {bin_interval*bin_size}s): {fuzzy_overlap_count}")
-
-#%%
-from scipy.signal import correlate
-import numpy as np
-import matplotlib.pyplot as plt
-
-# Get the binned arrays
-event_series = event_binned['event'].values
-gld_series = gld_binned['strength'].values
-
-# Normalize both series (zero-mean)
-event_series = (event_series - np.mean(event_series)) / np.std(event_series)
-gld_series = (gld_series - np.mean(gld_series)) / np.std(gld_series)
-
-# Compute cross-correlation
-corr = correlate(event_series, gld_series, mode='full')
-lags = np.arange(-len(event_series) + 1, len(event_series))
-#lags = np.arange(-25, 25)
-
-# Get indices of the 5 highest correlation values
-top_5_indices = np.argsort(corr)[-15:][::-1]  # descending order
-
-# Get the corresponding lags and correlation values
-top_5_lags = lags[top_5_indices]
-top_5_corrs = corr[top_5_indices]
-
-# Print results
-for lag, value in zip(top_5_lags, top_5_corrs):
-    print(f"Lag: {lag*bin_size}, Correlation: {value}")
-
-# Find lag with maximum correlation
-best_lag_index = np.argmin(np.abs(top_5_lags))
-best_lag = top_5_lags[best_lag_index]
-max_corr_value = top_5_corrs[best_lag_index]
-
-# Convert lag to seconds
-best_lag_seconds = best_lag * bin_size
-
-# Print result
-print(f'Best lag: {best_lag} bins ({best_lag_seconds:.2f} seconds)')
-print(f'Max correlation: {max_corr_value:.3f}')
-
-# Plot correlation vs lag
-plt.figure(figsize=(12, 5))
-plt.scatter(lags*bin_size, corr, s=0.7, color='purple', label='Cross-correlations')
-plt.scatter(best_lag_seconds,max_corr_value, s=20, color='pink', label=f'Best lag: {best_lag_seconds:.2f}s')
-#plt.axvline(best_lag_seconds, color='r', linestyle='--', label=f'Best lag = {best_lag_seconds:.2f}s')
-plt.xlabel('Lag (seconds)')
-plt.ylabel('Cross-correlation')
-plt.title('Cross-Correlation between Event and GLD Strength Time Series')
-plt.legend()
-plt.grid(True)
-plt.tight_layout()
-#plt.savefig(f'/zhome/57/6/168999/Desktop/ThorDavis/hdbscan/final/{min_clusters}_{min_samples}_{time_tolerance}_corr_{name}.png', dpi=300) 
-plt.show()
-plt.close()
-
- #%%
-# --- Shift event_binned by best_lag ---
-shifted_event = event_binned['event'].shift(best_lag, fill_value=0)
-
-# Round all indexes consistently
-event_binned.index = np.round(event_binned.index, 10)
-gld_binned.index = np.round(gld_binned.index, 10)
-
-# Determine shifted event min and max
-shifted_event_min = np.round(event_binned.index.min() + best_lag * bin_size, 10)
-shifted_event_max = np.round(event_binned.index.max() + best_lag * bin_size, 10)
-
-# Get full time range covering both datasets (plus padding)
-total_min = min(shifted_event_min, gld_binned.index.min())
-total_max = max(shifted_event_max, gld_binned.index.max()) + 2 * bin_size
-
-# Generate extended time axis (and round it)
-extended_times = np.round(np.arange(total_min, total_max + bin_size, bin_size), 10)
-
-# Create empty extended series (float dtype)
-shifted_event_extended = pd.Series(0.0, index=extended_times)
-gld_extended = pd.Series(0.0, index=extended_times)
-
-# --- Assign shifted max events ---
-shifted_indices = np.round(event_binned.index + best_lag * bin_size, 10)
-valid_mask = shifted_indices.isin(shifted_event_extended.index)
-valid_indices = shifted_indices[valid_mask]
-valid_values = event_binned['event'].values[valid_mask]
-shifted_event_extended.loc[valid_indices] = valid_values
-
-# --- Assign GLD strength safely using index intersection ---
-matching_gld_index = gld_binned.index.intersection(gld_extended.index)
-gld_extended.loc[matching_gld_index] = gld_binned.loc[matching_gld_index, 'strength'].values
-
-# --- Plot ---
-fig, ax1 = plt.subplots(figsize=(15, 6))
-bar_width = 0.3
-
-# Plot shifted events (orange bars)
-ax1.bar(extended_times - bar_width/2, shifted_event_extended.values, width=bar_width,
-        color='tab:orange', label='Max Events (lagged)', alpha=0.7)
-#ax1.bar(shifted_indices - bar_width/2, shifted_event_extended.values, width=bar_width,
- #       color='tab:orange', label='Max Events (lagged)', alpha=0.7)
-ax1.set_ylabel('Max Events (lagged)', color='tab:orange')
-ax1.tick_params(axis='y', labelcolor='tab:orange')
-
-# Plot GLD strength (blue bars)
-ax2 = ax1.twinx()
-for t, color in type_colors.items():
-    subset = gld_grouped[gld_grouped['type'] == t]
-    subset = subset[subset['strength'] > 0]
-    ax2.scatter(
-        subset['bin'],
-        subset['strength'],
-        s=10,
-        color=color,
-        alpha=1,
-        label=t
-    )
-ax2.set_ylabel('GLD Strength', color='tab:blue')
-ax2.tick_params(axis='y', labelcolor='tab:blue')
-ax2.legend(title='Lightning Type', loc='upper left', bbox_to_anchor=(1.05,1))
-
-
-# Labels and formatting
-ax1.set_xlabel('Time (s)')
-plt.title(f'All Values: Shifted Max Events vs. GLD Strength (Lag = {best_lag * bin_size:.2f} s)')
-ax1.set_xlim(extended_times.min(), extended_times.max())
-plt.tight_layout()
-#plt.savefig(f'/zhome/57/6/168999/Desktop/ThorDavis/hdbscan/final/{min_clusters}_{min_samples}_{time_tolerance}_after_{name}.png', dpi=300) 
-plt.show()
-plt.close()
-
-#%%
-# Find overlapping non-zero bins
-overlap_mask = (shifted_event_extended > 0) & (gld_extended > 0)
-num_overlapping_bins = overlap_mask.sum()
-
-print(f"Number of overlapping bins after shift: {num_overlapping_bins}")
- 
-bin_interval = 50
-# Convert GLD presence to a binary array
-gld_binary = (gld_extended > 0).astype(int)
-
-# Create a rolling sum over ±10 bins (21-bin window centered)
-gld_window = gld_binary.rolling(window=bin_interval*2+1, center=True, min_periods=1).sum()
-
-# Any event bin with gld_window > 0 is within ±10 bins of a GLD
-fuzzy_overlap_mask = (shifted_event_extended > 0) & (gld_window > 0)
-fuzzy_overlap_count = fuzzy_overlap_mask.sum()
-
-print(f"Number of fuzzy-overlapping bins (within ± {bin_interval*bin_size}s): {fuzzy_overlap_count}")
-
- 
-
- 
- 
- 
- 
- 
- 
- 
- 
- 

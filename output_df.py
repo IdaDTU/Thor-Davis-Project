@@ -113,6 +113,35 @@ def calculate_cluster_sizes2(df):
 
     return cluster_sizes
 
+from scipy.spatial import ConvexHull
+from scipy.spatial.distance import pdist
+
+def calculate_cluster_sizes3(df):
+    """
+    Efficiently calculate the maximum spatial distance in each cluster.
+    """
+    cluster_sizes = []
+
+    for i in range(len(df)):
+        cluster_x = df.iloc[i]['x']
+        cluster_y = df.iloc[i]['y']
+        coordinates = np.stack((np.array(cluster_x), np.array(cluster_y)), axis=1)
+
+        if len(coordinates) < 2:
+            max_distance = 0
+        else:
+            try:
+                # Use convex hull points only for efficiency
+                hull = ConvexHull(coordinates)
+                hull_points = coordinates[hull.vertices]
+                max_distance = np.max(pdist(hull_points))
+            except:
+                # fallback if ConvexHull fails (e.g., all points colinear)
+                max_distance = np.max(pdist(coordinates))
+
+        cluster_sizes.append(max_distance)
+
+    return cluster_sizes
 
 
 def calculate_event_rate(total_events, periods):

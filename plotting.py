@@ -21,7 +21,7 @@ def plot_event_distribution(df, df_histogram, start, end, xaxis='time', window_s
     """
     if xaxis == 'time':
         x_column = 'timestamps_sec'
-        margin = 0.002   #in seconds
+        margin = 1   #in seconds
         xlabel = "Time [s]"
     else:
         x_column = 'frames'
@@ -89,7 +89,7 @@ def plot_event_distribution2(df, df_histogram, start, end, xaxis='time', window_
     """
     if xaxis == 'time':
         x_column = 'timestamps_sec'
-        margin = 0.02   # in seconds
+        margin = 0.5   # in seconds
         xlabel = "Time [s]"
     else:
         x_column = 'frames'
@@ -128,21 +128,22 @@ def plot_event_distribution2(df, df_histogram, start, end, xaxis='time', window_
     xdata = df_plot[x_column]
 
     # Begin plotting
-    plt.figure(figsize=(15, 5))
-    plt.plot(xdata, df_plot['count'], marker='o', linestyle='-', label='Event Count', color='lightsteelblue')
-    plt.plot(xdata, moving_avg, color='steelblue', linestyle='-', linewidth=2, label='Moving Average')
-    plt.axhline(y=avg_count, color='darkblue', linestyle='--', linewidth=2, label="Average (within range)")
-
-    plt.axvspan(start, end, color='red', alpha=0.2)
+    plt.figure(figsize=(8, 5))
+    #plt.plot(xdata + 0.2, df_plot['count'], marker='o', linestyle='-', label='Event Count', color='#1d468b', alpha=0.7)
+    plt.plot(xdata + 0.2, df_plot['count'], linestyle='-', color='#1d468b', alpha=0.4)
+    plt.plot(xdata + 0.2, df_plot['count'], linestyle='None', marker='o', color='#1d468b', label='Event Counts', alpha=0.7)
+    plt.axhline(y=avg_count, color='#e89e42', linestyle='--', linewidth=2, label="Average")
+    plt.axvspan(start+0.2, end+0.2, color='#e89e42', alpha=0.4, label='Cluster Period')
     plt.xlabel(xlabel, fontsize=14)
-    plt.xlim(start - margin, end + margin)
-    plt.ylabel("Event Count")
-    plt.title(f"Event Distribution from {start:.2f} to {end:.2f} ({xaxis}). Total events: {total_events}")
+    plt.xlim(start+0.2 - margin, end+0.2 + margin)
+    #plt.xlim(start+0.2 - 0.05, end+0.2 + 0.051)
+    plt.ylabel("ON-Events")
+    #plt.title(f"Event Distribution from {start:.2f} to {end:.2f} ({xaxis}). Total events: {total_events}")
     plt.grid(True)
-    plt.legend()
+    plt.legend(loc='upper right')
 
     if filename:
-        plt.savefig(filename, format='pdf', bbox_inches='tight', dpi=300)
+        plt.savefig(f'/Users/josephine/Library/CloudStorage/OneDrive-DanmarksTekniskeUniversitet/ThorDavis/histogrammer/start_{start+0.2}_{filename}.pdf', format='pdf', bbox_inches='tight', dpi=300)
         print(f"Plot saved as {filename}.pdf")
 
     if show:
