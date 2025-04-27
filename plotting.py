@@ -1,79 +1,10 @@
-##
-
+## Functions used for plots. Not all are used in the final project.
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
 import pandas as pd
 
 def plot_event_distribution(df, df_histogram, start, end, xaxis='time', window_size=100, filename=None, show=True):
-    """
-    Plots the event distribution over time or frame for a single cluster.
-
-    Parameters:
-    df (pd.DataFrame): Not directly used here but included for compatibility
-    df_histogram (pd.DataFrame): DataFrame with 'timestamps_sec', 'frames', and 'count' columns
-    start (float): Start of the cluster (in seconds or frames)
-    end (float): End of the cluster (in seconds or frames)
-    xaxis (str): 'time' or 'frame'
-    window_size (int): Window size for moving average
-    filename (str): Optional file name to save the plot
-    show (bool): Whether to display the plot
-    """
-    if xaxis == 'time':
-        x_column = 'timestamps_sec'
-        margin = 1   #in seconds
-        xlabel = "Time [s]"
-    else:
-        x_column = 'frames'
-        margin = 2
-        xlabel = "Frame"
-
-    # Filter the histogram by the current cluster's range
-    df_filtered = df_histogram[
-        (df_histogram[x_column] >= start) &
-        (df_histogram[x_column] <= end)
-    ].dropna(subset=[x_column, 'count'])
-
-    # Sort for clean plotting
-    df_filtered = df_filtered.sort_values(by=x_column)
-
-    if df_filtered.empty:
-        print(f"Warning: No data in {x_column} between {start} and {end}. Skipping plot.")
-        return 0
-
-    total_events = df_filtered['count'].sum()
-    avg_count = df_filtered['count'].mean()
-    moving_avg = df_filtered['count'].rolling(window=window_size).mean()
-
-    xdata = df_filtered[x_column]
-
-    # Begin plotting
-    plt.figure(figsize=(15, 5))
-    plt.plot(xdata, df_filtered['count'], marker='o', linestyle='-', label='Event Count', color='lightsteelblue')
-    plt.plot(xdata, moving_avg, color='steelblue', linestyle='-', linewidth=2, label='Moving Average')
-    plt.axhline(y=avg_count, color='darkblue', linestyle='--', linewidth=2, label="Average")
-
-    plt.axvspan(start, end, color='red', alpha=0.2)
-    plt.xlabel(xlabel, fontsize=14)
-    plt.xlim(start - margin, end + margin)
-    plt.ylabel("Event Count")
-    plt.title(f"Event Distribution from {start:.2f} to {end:.2f} ({xaxis}). Total events: {total_events}")
-    plt.grid(True)
-    plt.legend()
-
-    if filename:
-        plt.savefig(filename, format='pdf', bbox_inches='tight', dpi=300)
-        print(f"Plot saved as {filename}.pdf")
-
-    if show:
-        plt.show()
-    else:
-        plt.close()
-
-    return total_events
-
-
-def plot_event_distribution2(df, df_histogram, start, end, xaxis='time', window_size=100, filename=None, show=True):
     """
     Plots the event distribution over time or frame for a single cluster.
 
@@ -152,8 +83,6 @@ def plot_event_distribution2(df, df_histogram, start, end, xaxis='time', window_
         plt.close()
 
     return total_events, max_event
-
-
 
 def plot_cluster_locations(df, title="Cluster Locations", filename=None, show=True):
     """

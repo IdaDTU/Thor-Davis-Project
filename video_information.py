@@ -1,5 +1,4 @@
-##
-
+## Functions used for DAVIS data processing
 import dv_processing as dvp
 import numpy as np
 import pandas as pd

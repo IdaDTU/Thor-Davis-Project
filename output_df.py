@@ -1,9 +1,7 @@
-##
-
-from plotting import plot_event_distribution, plot_event_distribution2
+## Functions used to create the output df
+from plotting import plot_event_distribution
 import numpy as np
 import pandas as pd
-from scipy.spatial.distance import cdist
 
 def calculate_total_events(df, df_histogram, xaxis='time', filename=None, show=False):
     """
@@ -34,7 +32,7 @@ def calculate_total_events(df, df_histogram, xaxis='time', filename=None, show=F
     # Iterate over merged clusters
     for i, merged_cluster_indices in enumerate(merged_clusters):
 
-        total_events, max_event = plot_event_distribution2(
+        total_events, max_event = plot_event_distribution(
             df=df,
             df_histogram=df_histogram,
             start=start.iloc[i].item(),
@@ -48,75 +46,11 @@ def calculate_total_events(df, df_histogram, xaxis='time', filename=None, show=F
 
     return total_events_list, max_event_list
 
-def calculate_cluster_sizes(df):
-    """
-    Calculate the size (maximum distance between any two points) for each merged cluster.
-    
-    Args:
-    - df (pd.DataFrame): DataFrame containing 'clusters', 'x', 'y' columns.
-    
-    Returns:
-    - cluster_sizes (list): Maximum pairwise distance within each cluster.
-    """
-    merged_clusters = df['clusters']
-    x = df['x']
-    y = df['y']
-
-    # Flatten coordinates
-    x_coords_valid = np.concatenate(x)
-    y_coords_valid = np.concatenate(y)
-    
-    #x_coords_valid = df['x'].values
-    #y_coords_valid = df['y'].values
-
-    cluster_sizes = []
-
-    for cluster_indices in merged_clusters:
-        # Select only the coordinates for this cluster
-        cluster_x = x_coords_valid[cluster_indices]
-        cluster_y = y_coords_valid[cluster_indices]
-
-        # Combine into 2D array
-        coordinates = np.stack((cluster_x, cluster_y), axis=1)
-
-        if len(coordinates) < 2:
-            max_distance = 0  # Or np.nan if preferred
-        else:
-            distances = cdist(coordinates, coordinates)
-            max_distance = np.max(distances)
-
-        cluster_sizes.append(max_distance)
-
-    return cluster_sizes
-
-def calculate_cluster_sizes2(df):
-    """
-    Calculate the size (max spatial distance) of each cluster in filtered_df,
-    where each row contains the x and y values for one merged cluster.
-    """
-    cluster_sizes = []
-
-    for i in range(len(df)):
-        cluster_x = df.iloc[i]['x']
-        cluster_y = df.iloc[i]['y']
-
-        # Safety: convert to array in case it's a list
-        coordinates = np.stack((np.array(cluster_x), np.array(cluster_y)), axis=1)
-
-        if len(coordinates) < 2:
-            max_distance = 0
-        else:
-            distances = cdist(coordinates, coordinates)
-            max_distance = np.max(distances)
-
-        cluster_sizes.append(max_distance)
-
-    return cluster_sizes
 
 from scipy.spatial import ConvexHull
 from scipy.spatial.distance import pdist
 
-def calculate_cluster_sizes3(df):
+def calculate_cluster_sizes(df):
     """
     Efficiently calculate the maximum spatial distance in each cluster.
     """
@@ -163,62 +97,7 @@ def calculate_event_rate(total_events, periods):
     
     return event_rates
 
-def create_and_save_df(df, size, total_events, event_rate, filename=None, decimals=3):
-    # Create a dictionary of the input data
-    
-    start = df['start']
-    end = df['end']
-    period = df['period']
-    mean_time = df['mean time']
-    std_time = df['std_time']
-    std_size = df['std_size']
-    frame_mean = [np.mean(frames) for frames in df['frames']]
-    frame_period = df['frame period']
-    frame_start = df['start frame']
-    frame_end = df['end frame']
-    
-    data = {
-        'start': start,
-        'end': end,
-        'period [ms]': period*1000,
-        'mean time': mean_time,
-        'size [px]': size,
-        'total events': total_events,
-        'event rate [event/ms]': event_rate/1000,
-        'std (time) [ms]': std_time*1000, #so its the same as periods (ms)
-        'std (size) [px]': std_size,
-        'mean frame': frame_mean,
-        'frame period': frame_period,
-        'start frame': frame_start,
-        'end frame': frame_end
-    }
-
-    # Create DataFrame from the data
-    df = pd.DataFrame(data)
-    df["eps study"] = np.sqrt(df["size [px]"]**2 + ((df["start"] - df["end"]) / 100)**2)
-    
-    # Round the numeric columns to the specified number of decimal places
-    df['start'] = df['start'].round(decimals)
-    df['end'] = df['end'].round(decimals)
-    df['period [ms]'] = df['period [ms]'].round(decimals)
-    df['mean time'] = df['mean time'].round(decimals)
-    df['size [px]'] = df['size [px]'].round(decimals)
-    df['total events'] = df['total events'].round(decimals)
-    df['event rate [event/ms]'] = df['event rate [event/ms]'].round(decimals)
-    df['std (time) [ms]'] = df['std (time) [ms]'].round(decimals)
-    df['std (size) [px]'] = df['std (size) [px]'].round(decimals)
-    df['mean frame'] = df['mean frame'].round()
-    df['eps study'] = df['eps study'].round(decimals)
-
-    if filename:
-        df.to_csv(filename, index=False)
-        print(f"Output dataframe saved as {filename}")
-    
-    return df
-
-def create_and_save_df2(df, df_histogram, size, total_events, max_event, event_rate, filename=None, decimals=3):
-    import pandas as pd
-    import numpy as np
+def create_and_save_df(df, df_histogram, size, total_events, max_event, event_rate, filename=None, decimals=3):
 
     # Convert size, total_events, etc. to Series if they aren’t already
     size = pd.Series(size)
@@ -283,7 +162,4 @@ def create_and_save_df2(df, df_histogram, size, total_events, max_event, event_r
         print(f"Output dataframe saved as {filename}")
 
     return result_df
-
-
-
 
